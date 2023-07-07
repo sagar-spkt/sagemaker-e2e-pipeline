@@ -1,0 +1,269 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.16"
+    }
+    awscc = {
+      source  = "hashicorp/awscc"
+      version = "~> 0.1"
+    }
+  }
+
+  required_version = ">= 1.2.0"
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+provider "awscc" {
+  region = "us-east-1"
+}
+
+locals {
+  pipeline_name = "sklearn-multimodel"
+}
+
+resource "aws_iam_role" "pipeline_iam_role" {
+  name               = "${local.pipeline_name}_pipeline_role"
+  assume_role_policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = {
+          Service = [
+            "sagemaker.amazonaws.com",
+            "lambda.amazonaws.com"
+          ]
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "pipeline_iam_policies" {
+  for_each = toset([
+    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+    "arn:aws:iam::aws:policy/AWSLambda_FullAccess",
+    "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess",
+    "arn:aws:iam::aws:policy/AmazonSageMakerCanvasFullAccess",
+    "arn:aws:iam::aws:policy/AmazonSageMakerCanvasAIServicesAccess",
+  ])
+  role       = aws_iam_role.pipeline_iam_role.name
+  policy_arn = each.value
+}
+
+resource "aws_ecr_repository" "ecr_repo" {
+  name                 = "sagemaker-sklearn-extended"
+  image_tag_mutability = "IMMUTABLE"
+  force_delete         = false
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+}
+
+data "aws_caller_identity" "current_caller" {
+
+}
+
+data "aws_region" "current_region" {
+
+}
+
+resource "null_resource" "image_build_push" {
+  triggers = {
+    # changes in `image` will trigger docker image build and push step
+    file_hashes = sha256(join("", [
+      for file_path in fileset("${path.module}/image", "**") :filesha256("${path.module}/image/${file_path}")
+    ]))
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+      sh ${path.module}/image/build_and_push.sh ${data.aws_caller_identity.current_caller.account_id} ${data.aws_region.current_region.name} ${aws_ecr_repository.ecr_repo.name}
+    EOT
+  }
+}
+
+data "aws_ecr_image" "latest_image" {
+  repository_name = aws_ecr_repository.ecr_repo.name
+  image_tag       = "latest"
+  depends_on      = [null_resource.image_build_push]
+}
+
+resource "aws_s3_bucket" "pipeline_bucket" {
+  # use default sagemaker bucket
+  bucket        = "sagemaker-${data.aws_region.current_region.name}-${data.aws_caller_identity.current_caller.account_id}"
+  force_destroy = false
+}
+
+resource "null_resource" "source_tar" {
+  triggers = {
+    file_hashes = sha256(join("", [
+      for file_path in fileset("${path.module}/scripts", "**") :filesha256("${path.module}/scripts/${file_path}")
+    ]))
+  }
+  provisioner "local-exec" {
+    command = <<EOT
+       tar -czvf ${path.module}/.terraform_artifacts/source.tar.gz -C ${path.module}/scripts  $(ls -A ${path.module}/scripts)
+    EOT
+  }
+}
+
+resource "aws_s3_object" "source_tar" {
+  bucket      = aws_s3_bucket.pipeline_bucket.bucket
+  key         = "${local.pipeline_name}/codes/source.tar.gz"
+  source      = "${path.module}/.terraform_artifacts/source.tar.gz"
+  source_hash = sha256(join("", [
+    for file_path in fileset("${path.module}/scripts", "**") :filesha256("${path.module}/scripts/${file_path}")
+  ]))
+  depends_on = [null_resource.source_tar]
+}
+
+resource "aws_s3_object" "preprocessing_script" {
+  bucket = aws_s3_bucket.pipeline_bucket.bucket
+  key    = "${local.pipeline_name}/codes/preprocessing.py"
+  source = "${path.module}/scripts/preprocessing.py"
+  etag   = filemd5("${path.module}/scripts/preprocessing.py")
+}
+
+resource "aws_s3_object" "evaluation_script" {
+  bucket = aws_s3_bucket.pipeline_bucket.bucket
+  key    = "${local.pipeline_name}/codes/evaluate.py"
+  source = "${path.module}/scripts/evaluate.py"
+  etag   = filemd5("${path.module}/scripts/evaluate.py")
+}
+
+locals {
+  pipeline_definition_command = <<EOT
+    python ${path.module}/pipeline.py \
+    --role ${aws_iam_role.pipeline_iam_role.arn} \
+    --image-uri ${data.aws_caller_identity.current_caller.account_id}.dkr.ecr.${data.aws_region.current_region.name}.amazonaws.com/${aws_ecr_repository.ecr_repo.name}@${data.aws_ecr_image.latest_image.image_digest} \
+    --pipeline-name ${local.pipeline_name} \
+    --source-s3-uri s3://${aws_s3_object.source_tar.bucket}/${aws_s3_object.source_tar.key} \
+    --preprocessing-script-s3 s3://${aws_s3_object.preprocessing_script.bucket}/${aws_s3_object.preprocessing_script.key} \
+    --evaluation-script-s3 s3://${aws_s3_object.evaluation_script.bucket}/${aws_s3_object.evaluation_script.key} \
+    --definition-output ${path.module}/.terraform_artifacts/pipeline_definition.json \
+  EOT
+}
+
+resource "null_resource" "pipeline_definition" {
+  triggers = {
+    file_hashes = sha256(join("", [
+      filesha256("${path.module}/pipeline.py"), sha256(local.pipeline_definition_command)
+    ]))
+  }
+  provisioner "local-exec" {
+    command = local.pipeline_definition_command
+  }
+}
+
+data "local_file" "pipeline_definition" {
+  filename   = "${path.module}/.terraform_artifacts/pipeline_definition.json"
+  depends_on = [null_resource.pipeline_definition]
+}
+
+resource "awscc_sagemaker_pipeline" "pipeline" {
+  pipeline_name        = local.pipeline_name
+  role_arn             = aws_iam_role.pipeline_iam_role.arn
+  pipeline_description = "E2E Hyperparameter Optimization Multi-Model Pipeline"
+  pipeline_definition  = {
+    pipeline_definition_body = data.local_file.pipeline_definition.content
+  }
+}
+
+resource "aws_sagemaker_model" "endpoint_model" {
+  name               = "${local.pipeline_name}-multimodel"
+  execution_role_arn = aws_iam_role.pipeline_iam_role.arn
+  primary_container {
+    image          = "${data.aws_caller_identity.current_caller.account_id}.dkr.ecr.${data.aws_region.current_region.name}.amazonaws.com/${aws_ecr_repository.ecr_repo.name}:latest"
+    model_data_url = "s3://${aws_s3_bucket.pipeline_bucket.bucket}/${local.pipeline_name}/multimodel-artifacts/"
+    mode           = "MultiModel"
+    environment    = {
+      SAGEMAKER_CONTAINER_LOG_LEVEL = 20
+      SAGEMAKER_PROGRAM             = "inference.py"
+      SAGEMAKER_REGION              = data.aws_region.current_region.name
+      SAGEMAKER_SUBMIT_DIRECTORY    = "s3://${aws_s3_object.source_tar.bucket}/${aws_s3_object.source_tar.key}"
+    }
+  }
+}
+
+resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
+  name = "${local.pipeline_name}-endpoint-config"
+  production_variants {
+    model_name             = aws_sagemaker_model.endpoint_model.name
+    variant_name           = "AllTraffic"
+    instance_type          = "ml.t2.medium"
+    initial_instance_count = 1
+    initial_variant_weight = 1
+  }
+}
+
+resource "aws_sagemaker_endpoint" "endpoint" {
+  name                 = local.pipeline_name
+  endpoint_config_name = aws_sagemaker_endpoint_configuration.endpoint_configuration.name
+}
+
+data "archive_file" "lambda_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/lambda"
+  output_path = "${path.module}/.terraform_artifacts/lambda.zip"
+}
+
+resource "aws_lambda_function" "lambda_endpoint_deployer" {
+  function_name                  = "sagemaker-${local.pipeline_name}-pipeline-endpoint-deploy"
+  role                           = aws_iam_role.pipeline_iam_role.arn
+  handler                        = "endpoint_deploy.lambda_handler"
+  runtime                        = "python3.10"
+  filename                       = data.archive_file.lambda_zip.output_path
+  reserved_concurrent_executions = 1
+  source_code_hash               = data.archive_file.lambda_zip.output_base64sha256
+  environment {
+    variables = {
+      PIPELINE_BUCKET     = aws_s3_bucket.pipeline_bucket.bucket
+      MODEL_ARTIFACTS_KEY = "${local.pipeline_name}/multimodel-artifacts"
+    }
+  }
+}
+
+resource "aws_cloudwatch_event_rule" "model_package_update_rule" {
+  name          = "sagemaker-${local.pipeline_name}-pipeline-model-approve-or-reject"
+  description   = "Listens to every sagemaker model package state change to either reject or update and invokes lambda function to deploy the latest approved model in the model package group to the endpoint."
+  is_enabled    = true
+  event_pattern = jsonencode({
+    source      = ["aws.sagemaker"],
+    detail-type = ["SageMaker Model Package State Change"],
+    detail      = {
+      ModelPackageGroupName = [
+        {
+          prefix = "${local.pipeline_name}-"
+        }
+      ]
+      ModelApprovalStatus = [
+        {
+          anything-but = ["PendingManualApproval"]
+        }
+      ]
+    }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "model_package_update_rule_target" {
+  arn  = aws_lambda_function.lambda_endpoint_deployer.arn
+  rule = aws_cloudwatch_event_rule.model_package_update_rule.id
+  retry_policy {
+    maximum_event_age_in_seconds = 3600
+    maximum_retry_attempts       = 3
+  }
+}
+
+resource "aws_lambda_permission" "allow_eventbridge" {
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.lambda_endpoint_deployer.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.model_package_update_rule.arn
+}
