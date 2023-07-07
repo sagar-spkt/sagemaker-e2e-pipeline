@@ -304,3 +304,12 @@ resource "aws_lambda_function" "lambda_endpoint_invoker" {
     }
   }
 }
+
+resource "aws_lambda_function_url" "function_url_endpoint" {
+  authorization_type = "NONE"
+  function_name      = aws_lambda_function.lambda_endpoint_invoker.function_name
+}
+
+output "function_url_endpoint" {
+  value = aws_lambda_function_url.function_url_endpoint.function_url
+}

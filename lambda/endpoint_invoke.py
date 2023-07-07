@@ -21,13 +21,15 @@ def get_groupname2model_map():
 def lambda_handler(event, context):
     print(f"Got Event: {json.dumps(event)}")
 
+    body = json.loads(event["body"])
+
     groupname2model_map = get_groupname2model_map()
-    if model_name := groupname2model_map.get(event['model']):
+    if model_name := groupname2model_map.get(body['model']):
         response = runtime.invoke_endpoint(
             EndpointName=os.environ['ENDPOINT_NAME'],
             ContentType='text/csv',
             TargetModel=model_name,
-            Body=event['data']
+            Body=body['data']
         )["Body"].read().decode("utf-8")
         return {
             "statusCode": 200,
@@ -36,5 +38,5 @@ def lambda_handler(event, context):
     else:
         return {
             "statusCode": 404,
-            "body": f"No model found for {event['model']}",
+            "body": f"No model found for {body['model']}",
         }
