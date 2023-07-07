@@ -38,6 +38,10 @@ if __name__ == "__main__":
     parser.add_argument("--preprocessing-script-s3")
     parser.add_argument("--evaluation-script-s3")
     parser.add_argument("--definition-output")
+    parser.add_argument("--preprocessing-instance")
+    parser.add_argument("--training-instance")
+    parser.add_argument("--evaluation-instance")
+    parser.add_argument("--inference-instance")
 
     args, _ = parser.parse_known_args()
 
@@ -64,7 +68,7 @@ if __name__ == "__main__":
     preprocessor = ScriptProcessor(
         image_uri=image_uri,
         command=["python"],
-        instance_type="ml.t3.xlarge",
+        instance_type=args.preprocessing_instance,
         instance_count=1,
         sagemaker_session=sagemaker_session,
         role=role,
@@ -138,7 +142,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type="ml.m5.large",
+            instance_type=args.training_instance,
             image_uri=image_uri,
             # need to pass copy because each job updates this dictionary and all uses the same reference
             hyperparameters=common_hyperparameters.copy(),
@@ -149,7 +153,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type="ml.m5.large",
+            instance_type=args.training_instance,
             image_uri=image_uri,
             hyperparameters=common_hyperparameters.copy(),
             sagemaker_session=sagemaker_session,
@@ -159,7 +163,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type="ml.m5.large",
+            instance_type=args.training_instance,
             image_uri=image_uri,
             hyperparameters=common_hyperparameters.copy(),
             sagemaker_session=sagemaker_session,
@@ -169,7 +173,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type="ml.m5.large",
+            instance_type=args.training_instance,
             image_uri=image_uri,
             hyperparameters=common_hyperparameters.copy(),
             sagemaker_session=sagemaker_session,
@@ -179,7 +183,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type="ml.m5.large",
+            instance_type=args.training_instance,
             image_uri=image_uri,
             hyperparameters=common_hyperparameters.copy(),
             sagemaker_session=sagemaker_session,
@@ -189,7 +193,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type="ml.m5.large",
+            instance_type=args.training_instance,
             image_uri=image_uri,
             hyperparameters=common_hyperparameters.copy(),
             sagemaker_session=sagemaker_session,
@@ -301,7 +305,7 @@ if __name__ == "__main__":
         source_dir=args.source_s3_uri,
         role=role,
         instance_count=1,
-        instance_type="ml.m5.large",
+        instance_type=args.training_instance,
         image_uri=image_uri,
         hyperparameters=best_estimator_param,
         metric_definitions=metric_definitions,
@@ -344,7 +348,7 @@ if __name__ == "__main__":
     evaluate_processor = ScriptProcessor(
         image_uri=image_uri,
         command=["python"],
-        instance_type="ml.t3.xlarge",
+        instance_type=args.evaluation_instance,
         instance_count=1,
         sagemaker_session=sagemaker_session,
         role=role,
@@ -415,8 +419,8 @@ if __name__ == "__main__":
     step_args = model.register(
         content_types=["text/csv"],
         response_types=["text/csv"],
-        inference_instances=["ml.m5.large"],
-        transform_instances=["ml.m5.large"],
+        inference_instances=[args.inference_instance],
+        transform_instances=[args.inference_instance],
         model_package_group_name=Join(
             on="-", values=[pipeline_name, dataset_param]),
         model_metrics=model_metrics,

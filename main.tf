@@ -13,26 +13,46 @@ terraform {
   required_version = ">= 1.2.0"
 }
 
-variable "pipeline_name" {
+variable "pipeline-name" {
   type    = string
   default = "sklearn-multimodel"
 }
 
-variable "aws_region" {
+variable "aws-region" {
   type    = string
   default = "us-east-1"
 }
 
+variable "preprocessing-instance" {
+  type = string
+  default = "ml.t3.xlarge"
+}
+
+variable "training-instance" {
+  type = string
+  default = "ml.m5.large"
+}
+
+variable "evaluation-instance" {
+  type = string
+  default = "ml.t3.xlarge"
+}
+
+variable "inference-instance" {
+  type = string
+  default = "ml.m5.large"
+}
+
 provider "aws" {
-  region = var.aws_region
+  region = var.aws-region
 }
 
 provider "awscc" {
-  region = var.aws_region
+  region = var.aws-region
 }
 
 locals {
-  pipeline_name = var.pipeline_name
+  pipeline_name = var.pipeline-name
 }
 
 resource "aws_iam_role" "pipeline_iam_role" {
@@ -157,6 +177,10 @@ locals {
     --preprocessing-script-s3 s3://${aws_s3_object.preprocessing_script.bucket}/${aws_s3_object.preprocessing_script.key} \
     --evaluation-script-s3 s3://${aws_s3_object.evaluation_script.bucket}/${aws_s3_object.evaluation_script.key} \
     --definition-output ${path.module}/.terraform_artifacts/pipeline_definition.json \
+    --preprocessing-instance ${var.preprocessing-instance} \
+    --training-instance ${var.training-instance} \
+    --evaluation-instance ${var.evaluation-instance} \
+    --inference-instance ${var.inference-instance} \
   EOT
 }
 
@@ -220,7 +244,7 @@ resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
   production_variants {
     model_name             = aws_sagemaker_model.endpoint_model.name
     variant_name           = "AllTraffic"
-    instance_type          = "ml.m5.large"
+    instance_type          = var.inference-instance
     initial_instance_count = 1
     initial_variant_weight = 1
   }
