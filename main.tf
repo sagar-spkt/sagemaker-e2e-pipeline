@@ -209,7 +209,7 @@ resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
   production_variants {
     model_name             = aws_sagemaker_model.endpoint_model.name
     variant_name           = "AllTraffic"
-    instance_type          = "ml.t2.medium"
+    instance_type          = "ml.m5.large"
     initial_instance_count = 1
     initial_variant_weight = 1
   }
@@ -218,6 +218,39 @@ resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
 resource "aws_sagemaker_endpoint" "endpoint" {
   name                 = local.pipeline_name
   endpoint_config_name = aws_sagemaker_endpoint_configuration.endpoint_configuration.name
+}
+
+resource "aws_appautoscaling_target" "pipeline_endpoint" {
+  max_capacity       = 4
+  min_capacity       = 1
+  resource_id        = "endpoint/${aws_sagemaker_endpoint.endpoint.name}/variant/${aws_sagemaker_endpoint_configuration.endpoint_configuration.production_variants[0].variant_name}"
+  scalable_dimension = "sagemaker:variant:DesiredInstanceCount"
+  service_namespace  = "sagemaker"
+}
+
+resource "aws_appautoscaling_policy" "pipeline_endpoint" {
+  name               = "${local.pipeline_name}:${aws_appautoscaling_target.pipeline_endpoint.resource_id}"
+  resource_id        = aws_appautoscaling_target.pipeline_endpoint.resource_id
+  scalable_dimension = aws_appautoscaling_target.pipeline_endpoint.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.pipeline_endpoint.service_namespace
+  policy_type        = "TargetTrackingScaling"
+  target_tracking_scaling_policy_configuration {
+    target_value = 85
+    customized_metric_specification {
+      metric_name = "CPUUtilization"
+      namespace   = "/aws/sagemaker/Endpoints"
+      statistic   = "Average"
+      unit        = "Percent"
+      dimensions {
+        name  = "EndpointName"
+        value = aws_sagemaker_endpoint.endpoint.name
+      }
+      dimensions {
+        name  = "VariantName"
+        value = aws_sagemaker_endpoint_configuration.endpoint_configuration.production_variants[0].variant_name
+      }
+    }
+  }
 }
 
 data "archive_file" "deploy_lambda_zip" {
