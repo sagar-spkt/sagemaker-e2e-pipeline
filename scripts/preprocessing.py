@@ -57,11 +57,11 @@ if __name__ == "__main__":
 
     args, _ = parser.parse_known_args()
 
-    if args.dataset == "breast_cancer":
+    if args.dataset == "breast-cancer":
         train_df, test_df = get_breast_cancer_dataset(
             args.test_size, args.target, args.random_state, args.stratify,
         )
-    elif args.dataset == "banknote_authentication":
+    elif args.dataset == "banknote-authentication":
         train_df, test_df = get_banknote_authentication_dataset(
             args.test_size, args.target, args.random_state, args.stratify,
         )

@@ -56,7 +56,7 @@ def get_groupname2model_map():
     try:
         groupname2model_map = s3_client.get_object(
             Bucket=os.environ["PIPELINE_BUCKET"],
-            Key=f"{os.environ['MODEL_ARTIFACTS_KEY']}/groupname2model_map.json",
+            Key=f"{os.environ['MODEL_ARTIFACTS_KEY']}/{os.environ['GROUPNAME_MODEL_MAP']}",
         )["Body"].read().decode('utf-8')
         groupname2model_map = json.loads(groupname2model_map)
         return groupname2model_map
@@ -68,7 +68,7 @@ def set_groupname2model_map(groupname2model_map):
     groupname2model_map = json.dumps(groupname2model_map)
     s3_object = s3_resource.Object(
         bucket_name=os.environ["PIPELINE_BUCKET"],
-        key=f"{os.environ['MODEL_ARTIFACTS_KEY']}/groupname2model_map.json"
+        key=f"{os.environ['MODEL_ARTIFACTS_KEY']}/{os.environ['GROUPNAME_MODEL_MAP']}"
     )
     s3_object.put(Body=groupname2model_map, ContentType="application/json")
 

@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     dataset_param = ParameterString(
         name="DatasetName",
-        enum_values=["breast_cancer", "banknote_authentication"],
+        enum_values=["breast-cancer", "banknote-authentication"],
     )
     stratify_train_test_split = ParameterString(
         name="StratifySplit",
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     step_args = preprocessor.run(
         arguments=[
-            "--silo-name", dataset_param,
+            "--dataset", dataset_param,
             "--target", "CLASS",
             "--test-size", preprocess_testset_size.to_string(),
             "--stratify", stratify_train_test_split,

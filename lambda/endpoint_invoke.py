@@ -10,7 +10,7 @@ def get_groupname2model_map():
     try:
         groupname2model_map = s3_client.get_object(
             Bucket=os.environ["PIPELINE_BUCKET"],
-            Key=os.environ['GROUPNAME_MODEL_MAP'],
+            Key=f"{os.environ['MODEL_ARTIFACTS_KEY']}/{os.environ['GROUPNAME_MODEL_MAP']}",
         )["Body"].read().decode('utf-8')
         groupname2model_map = json.loads(groupname2model_map)
         return groupname2model_map

@@ -57,7 +57,7 @@ resource "aws_iam_role_policy_attachment" "pipeline_iam_policies" {
 }
 
 resource "aws_ecr_repository" "ecr_repo" {
-  name                 = "sagemaker-sklearn-extended"
+  name                 = "${local.pipeline_name}-image"
   image_tag_mutability = "IMMUTABLE"
   force_delete         = false
   encryption_configuration {
@@ -150,6 +150,19 @@ locals {
   EOT
 }
 
+resource "null_resource" "pipeline_definition_file" {
+  triggers = {
+    ifnotexists = sha256(
+      fileexists("${path.module}/.terraform_artifacts/pipeline_definition.json")
+      ? "pipeline definition exists."
+      : "pipeline definition doesn't exist."
+    )
+  }
+  provisioner "local-exec" {
+    command = "touch ${path.module}/.terraform_artifacts/pipeline_definition.json"
+  }
+}
+
 resource "null_resource" "pipeline_definition" {
   triggers = {
     file_hashes = sha256(join("", [
@@ -179,7 +192,7 @@ resource "aws_sagemaker_model" "endpoint_model" {
   name               = "${local.pipeline_name}-multimodel"
   execution_role_arn = aws_iam_role.pipeline_iam_role.arn
   primary_container {
-    image          = "${data.aws_caller_identity.current_caller.account_id}.dkr.ecr.${data.aws_region.current_region.name}.amazonaws.com/${aws_ecr_repository.ecr_repo.name}:latest"
+    image          = "${data.aws_caller_identity.current_caller.account_id}.dkr.ecr.${data.aws_region.current_region.name}.amazonaws.com/${aws_ecr_repository.ecr_repo.name}@${data.aws_ecr_image.latest_image.image_digest}"
     model_data_url = "s3://${aws_s3_bucket.pipeline_bucket.bucket}/${local.pipeline_name}/multimodel-artifacts/"
     mode           = "MultiModel"
     environment    = {
@@ -207,10 +220,10 @@ resource "aws_sagemaker_endpoint" "endpoint" {
   endpoint_config_name = aws_sagemaker_endpoint_configuration.endpoint_configuration.name
 }
 
-data "archive_file" "lambda_zip" {
+data "archive_file" "deploy_lambda_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/lambda"
-  output_path = "${path.module}/.terraform_artifacts/lambda.zip"
+  source_file = "${path.module}/lambda/endpoint_deploy.py"
+  output_path = "${path.module}/.terraform_artifacts/deploy_lambda.zip"
 }
 
 resource "aws_lambda_function" "lambda_endpoint_deployer" {
@@ -218,13 +231,14 @@ resource "aws_lambda_function" "lambda_endpoint_deployer" {
   role                           = aws_iam_role.pipeline_iam_role.arn
   handler                        = "endpoint_deploy.lambda_handler"
   runtime                        = "python3.10"
-  filename                       = data.archive_file.lambda_zip.output_path
+  filename                       = data.archive_file.deploy_lambda_zip.output_path
   reserved_concurrent_executions = 1
-  source_code_hash               = data.archive_file.lambda_zip.output_base64sha256
+  source_code_hash               = data.archive_file.deploy_lambda_zip.output_base64sha256
   environment {
     variables = {
       PIPELINE_BUCKET     = aws_s3_bucket.pipeline_bucket.bucket
       MODEL_ARTIFACTS_KEY = "${local.pipeline_name}/multimodel-artifacts"
+      GROUPNAME_MODEL_MAP = "groupname2model_map.json"
     }
   }
 }
@@ -266,4 +280,27 @@ resource "aws_lambda_permission" "allow_eventbridge" {
   function_name = aws_lambda_function.lambda_endpoint_deployer.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.model_package_update_rule.arn
+}
+
+data "archive_file" "invoke_lambda_zip" {
+  type        = "zip"
+  source_file = "${path.module}/lambda/endpoint_invoke.py"
+  output_path = "${path.module}/.terraform_artifacts/invoke_lambda.zip"
+}
+
+resource "aws_lambda_function" "lambda_endpoint_invoker" {
+  function_name    = "sagemaker-${local.pipeline_name}-endpoint-invoker"
+  role             = aws_iam_role.pipeline_iam_role.arn
+  handler          = "endpoint_invoke.lambda_handler"
+  runtime          = "python3.10"
+  filename         = data.archive_file.invoke_lambda_zip.output_path
+  source_code_hash = data.archive_file.invoke_lambda_zip.output_base64sha256
+  environment {
+    variables = {
+      PIPELINE_BUCKET     = aws_lambda_function.lambda_endpoint_deployer.environment[0].variables.PIPELINE_BUCKET
+      MODEL_ARTIFACTS_KEY = aws_lambda_function.lambda_endpoint_deployer.environment[0].variables.MODEL_ARTIFACTS_KEY
+      GROUPNAME_MODEL_MAP = aws_lambda_function.lambda_endpoint_deployer.environment[0].variables.GROUPNAME_MODEL_MAP
+      ENDPOINT_NAME       = aws_sagemaker_endpoint.endpoint.name
+    }
+  }
 }
