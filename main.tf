@@ -24,23 +24,28 @@ variable "aws-region" {
 }
 
 variable "preprocessing-instance" {
-  type = string
+  type    = string
   default = "ml.t3.xlarge"
 }
 
 variable "training-instance" {
-  type = string
+  type    = string
   default = "ml.m5.large"
 }
 
 variable "evaluation-instance" {
-  type = string
+  type    = string
   default = "ml.t3.xlarge"
 }
 
 variable "inference-instance" {
-  type = string
+  type    = string
   default = "ml.m5.large"
+}
+
+variable "max-endpoint-instances" {
+  type    = number
+  default = 4
 }
 
 provider "aws" {
@@ -256,7 +261,7 @@ resource "aws_sagemaker_endpoint" "endpoint" {
 }
 
 resource "aws_appautoscaling_target" "pipeline_endpoint" {
-  max_capacity       = 4
+  max_capacity       = var.max-endpoint-instances
   min_capacity       = 1
   resource_id        = "endpoint/${aws_sagemaker_endpoint.endpoint.name}/variant/${aws_sagemaker_endpoint_configuration.endpoint_configuration.production_variants[0].variant_name}"
   scalable_dimension = "sagemaker:variant:DesiredInstanceCount"
