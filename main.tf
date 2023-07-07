@@ -13,16 +13,26 @@ terraform {
   required_version = ">= 1.2.0"
 }
 
+variable "pipeline_name" {
+  type    = string
+  default = "sklearn-multimodel"
+}
+
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+}
+
 provider "aws" {
-  region = "us-east-1"
+  region = var.aws_region
 }
 
 provider "awscc" {
-  region = "us-east-1"
+  region = var.aws_region
 }
 
 locals {
-  pipeline_name = "sklearn-multimodel"
+  pipeline_name = var.pipeline_name
 }
 
 resource "aws_iam_role" "pipeline_iam_role" {
@@ -172,6 +182,7 @@ resource "null_resource" "pipeline_definition" {
   provisioner "local-exec" {
     command = local.pipeline_definition_command
   }
+  depends_on = [null_resource.pipeline_definition_file]
 }
 
 data "local_file" "pipeline_definition" {
