@@ -29,6 +29,7 @@ from sagemaker.workflow.pipeline import Pipeline
 
 
 if __name__ == "__main__":
+    """---------------------------Pipeline Definition Arguments-------------------------"""
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--role")
@@ -45,12 +46,14 @@ if __name__ == "__main__":
 
     args, _ = parser.parse_known_args()
 
+    """---------------------------Pipeline Definition Resources-------------------------"""
     sagemaker_session = PipelineSession()
     bucket = sagemaker_session.default_bucket()
     role = args.role
     pipeline_name = args.pipeline_name
     image_uri = args.image_uri
 
+    """-----------------------------------Preprocessing Step-----------------------------"""
     dataset_param = ParameterString(
         name="DatasetName",
         enum_values=["breast-cancer", "banknote-authentication"],
@@ -101,27 +104,16 @@ if __name__ == "__main__":
         step_args=step_args
     )
 
+    """-----------------------------------Tuning Step-----------------------------"""
     # https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter
     tuning_cross_validation_scorer = ParameterString(
         name="CrossValidationScorer",
         default_value="roc_auc",
         enum_values=[
-            'accuracy',
-            'balanced_accuracy',
-            'top_k_accuracy',
-            'average_precision',
-            'f1',
-            'f1_micro',
-            'f1_macro',
-            'f1_weighted',
-            'precision',
-            'recall',
-            'jaccard',
-            'roc_auc',
-            'roc_auc_ovr',
-            'roc_auc_ovo',
-            'roc_auc_ovr_weighted',
-            'roc_auc_ovo_weighted',
+            'accuracy', 'balanced_accuracy', 'top_k_accuracy', 'average_precision',
+            'f1', 'f1_micro', 'f1_macro', 'f1_weighted', 'precision', 'recall',
+            'jaccard', 'roc_auc', 'roc_auc_ovr', 'roc_auc_ovo',
+            'roc_auc_ovr_weighted', 'roc_auc_ovo_weighted',
         ],
     )
 
@@ -294,6 +286,7 @@ if __name__ == "__main__":
         depends_on=[step_preprocess,],
     )
 
+    """-----------------------------------Refit Best Model Step-----------------------------"""
     best_estimator_param = {
         "best-training-job": step_tuning.properties.BestTrainingJob.TrainingJobName,
         "best-algorithm": step_tuning.properties.BestTrainingJob.TrainingJobDefinitionName,
@@ -320,15 +313,12 @@ if __name__ == "__main__":
         depends_on=[step_tuning,],
     )
 
+    """---------------------------Variables Determining Model Registration in Registry-----------------------------"""
     register_eval_metric = ParameterString(
         name="MetricForRegistrationThreshold",
         default_value="auc",
         enum_values=[
-            "accuracy",
-            "precision",
-            "recall",
-            "f1",
-            "auc",
+            "accuracy", "precision", "recall", "f1", "auc",
         ],
     )
     register_eval_metric_threshold = ParameterFloat(
@@ -345,6 +335,7 @@ if __name__ == "__main__":
         ],
     )
 
+    """-----------------------------------Evaluate Best Model Step-----------------------------"""
     evaluate_processor = ScriptProcessor(
         image_uri=image_uri,
         command=["python"],
@@ -392,6 +383,7 @@ if __name__ == "__main__":
         depends_on=[step_refit,],
     )
 
+    """-----------------------------------Model Registry Step-----------------------------"""
     model_metrics = ModelMetrics(
         model_statistics=MetricsSource(
             s3_uri=Join(
@@ -433,6 +425,7 @@ if __name__ == "__main__":
         depends_on=[step_evaluate,],
     )
 
+    """-----------------------------------Model Registry Fail Step-----------------------------"""
     step_fail = FailStep(
         name="RegisterFailed",
         error_message=Join(
@@ -446,6 +439,7 @@ if __name__ == "__main__":
         ),
     )
 
+    """-----------------------------------Register or Fail Check Step-----------------------------"""
     cond_gte = ConditionGreaterThanOrEqualTo(
         left=JsonGet(
             step_name=step_evaluate.name,
@@ -463,23 +457,16 @@ if __name__ == "__main__":
         else_steps=[step_fail],
     )
 
+    """-----------------------------------Generate Pipeline Definition-----------------------------"""
     pipeline = Pipeline(
         name=pipeline_name,
         parameters=[
-            dataset_param,
-            stratify_train_test_split,
-            preprocess_testset_size,
-            preprocess_random_state,
-            tuning_cross_validation_scorer,
-            tuning_max_jobs,
-            tuning_max_parallel_jobs,
-            register_eval_metric,
-            register_eval_metric_threshold,
-            register_model_approval_status,
+            dataset_param, stratify_train_test_split, preprocess_testset_size, preprocess_random_state,
+            tuning_cross_validation_scorer, tuning_max_jobs, tuning_max_parallel_jobs, register_eval_metric,
+            register_eval_metric_threshold, register_model_approval_status,
         ],
         steps=[
-            step_preprocess, step_tuning, step_refit,
-            step_evaluate, step_cond,
+            step_preprocess, step_tuning, step_refit, step_evaluate, step_cond,
         ],
         sagemaker_session=sagemaker_session,
     )
