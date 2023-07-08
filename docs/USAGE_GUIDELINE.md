@@ -1,3 +1,10 @@
+# Table of Contents
+1. [Preparing Environment](#preparing-environment)
+2. [Running Pipeline With Sagemaker Studio](#running-pipeline-with-sagemaker-studio)
+3. [Running Pipeline with Boto3](#running-pipeline-with-boto3)
+4. [Invoking the Endpoint](#invoking-the-endpoint)
+5. [Clearing AWS Resources and Artifacts](#clearing-aws-resources-and-artifacts-created-by-pipeline)
+
 ## Preparing Environment
 
 ### AWS Setup
