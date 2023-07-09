@@ -208,18 +208,12 @@ resource "aws_s3_object" "pipeline_definition" {
   depends_on = [null_resource.pipeline_definition]
 }
 
-data "aws_s3_object" "pipeline_definition" {
-  bucket = aws_s3_object.pipeline_definition.bucket
-  key    = aws_s3_object.pipeline_definition.key
-  depends_on = [aws_s3_object.pipeline_definition]
-}
-
 resource "awscc_sagemaker_pipeline" "pipeline" {
   pipeline_name        = var.pipeline-name
   role_arn             = aws_iam_role.pipeline_iam_role.arn
   pipeline_description = "E2E Hyperparameter Optimization Multi-Model Pipeline"
   pipeline_definition  = {
-    pipeline_definition_body = data.aws_s3_object.pipeline_definition.body
+    pipeline_definition_body = aws_s3_object.pipeline_definition.content
   }
 }
 
