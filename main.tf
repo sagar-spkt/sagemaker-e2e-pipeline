@@ -2,15 +2,15 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 4.16"
+      version = "~> 5.7"
     }
     awscc = {
       source  = "hashicorp/awscc"
-      version = "~> 0.1"
+      version = "~> 0.55.0"
     }
   }
 
-  required_version = ">= 1.2.0"
+  required_version = ">= 1.5.0"
 }
 
 variable "pipeline-name" {
