@@ -36,6 +36,7 @@ if __name__ == "__main__":
     parser.add_argument("--role")
     parser.add_argument("--image-uri")
     parser.add_argument("--pipeline-name")
+    parser.add_argument("--aws-region")
     parser.add_argument("--source-s3-uri")
     parser.add_argument("--preprocessing-script-s3")
     parser.add_argument("--evaluation-script-s3")
@@ -52,6 +53,7 @@ if __name__ == "__main__":
     role = args.role
     pipeline_name = args.pipeline_name
     image_uri = args.image_uri
+    aws_region = args.aws_region
 
     """-----------------------------------Preprocessing Step-----------------------------"""
     dataset_param = ParameterString(
@@ -290,7 +292,7 @@ if __name__ == "__main__":
     best_estimator_param = {
         "best-training-job": step_tuning.properties.BestTrainingJob.TrainingJobName,
         "best-algorithm": step_tuning.properties.BestTrainingJob.TrainingJobDefinitionName,
-        "aws-region": sagemaker_session.boto_region_name
+        "aws-region": aws_region
     }
 
     best_estimator = SKLearn(

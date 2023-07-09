@@ -56,12 +56,8 @@ provider "awscc" {
   region = var.aws-region
 }
 
-locals {
-  pipeline_name = var.pipeline-name
-}
-
 resource "aws_iam_role" "pipeline_iam_role" {
-  name               = "${local.pipeline_name}-pipeline-role"
+  name               = "${var.pipeline-name}-pipeline-role"
   assume_role_policy = jsonencode({
     Version   = "2012-10-17"
     Statement = [
@@ -92,7 +88,7 @@ resource "aws_iam_role_policy_attachment" "pipeline_iam_policies" {
 }
 
 resource "aws_ecr_repository" "ecr_repo" {
-  name                 = "${local.pipeline_name}-image"
+  name                 = "${var.pipeline-name}-image"
   image_tag_mutability = "IMMUTABLE"
   force_delete         = true
   encryption_configuration {
@@ -130,7 +126,7 @@ data "aws_ecr_image" "latest_image" {
 }
 
 resource "aws_s3_bucket" "pipeline_bucket" {
-  bucket        = "sagemaker-${local.pipeline_name}"
+  bucket        = "sagemaker-${var.pipeline-name}"
   force_destroy = true
 }
 
@@ -177,7 +173,8 @@ locals {
     --bucket ${aws_s3_bucket.pipeline_bucket.bucket} \
     --role ${aws_iam_role.pipeline_iam_role.arn} \
     --image-uri ${data.aws_caller_identity.current_caller.account_id}.dkr.ecr.${data.aws_region.current_region.name}.amazonaws.com/${aws_ecr_repository.ecr_repo.name}@${data.aws_ecr_image.latest_image.image_digest} \
-    --pipeline-name ${local.pipeline_name} \
+    --pipeline-name ${var.pipeline-name} \
+    --aws-region ${data.aws_region.current_region.name} \
     --source-s3-uri s3://${aws_s3_object.source_tar.bucket}/${aws_s3_object.source_tar.key} \
     --preprocessing-script-s3 s3://${aws_s3_object.preprocessing_script.bucket}/${aws_s3_object.preprocessing_script.key} \
     --evaluation-script-s3 s3://${aws_s3_object.evaluation_script.bucket}/${aws_s3_object.evaluation_script.key} \
@@ -220,7 +217,7 @@ data "local_file" "pipeline_definition" {
 }
 
 resource "awscc_sagemaker_pipeline" "pipeline" {
-  pipeline_name        = local.pipeline_name
+  pipeline_name        = var.pipeline-name
   role_arn             = aws_iam_role.pipeline_iam_role.arn
   pipeline_description = "E2E Hyperparameter Optimization Multi-Model Pipeline"
   pipeline_definition  = {
@@ -233,7 +230,7 @@ locals {
 }
 
 resource "aws_sagemaker_model" "endpoint_model" {
-  name               = "${local.pipeline_name}-multimodel"
+  name               = "${var.pipeline-name}-multimodel"
   execution_role_arn = aws_iam_role.pipeline_iam_role.arn
   primary_container {
     image          = "${data.aws_caller_identity.current_caller.account_id}.dkr.ecr.${data.aws_region.current_region.name}.amazonaws.com/${aws_ecr_repository.ecr_repo.name}@${data.aws_ecr_image.latest_image.image_digest}"
@@ -249,7 +246,7 @@ resource "aws_sagemaker_model" "endpoint_model" {
 }
 
 resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
-  name = "${local.pipeline_name}-endpoint-config"
+  name = "${var.pipeline-name}-endpoint-config"
   production_variants {
     model_name             = aws_sagemaker_model.endpoint_model.name
     variant_name           = "AllTraffic"
@@ -260,7 +257,7 @@ resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
 }
 
 resource "aws_sagemaker_endpoint" "endpoint" {
-  name                 = local.pipeline_name
+  name                 = var.pipeline-name
   endpoint_config_name = aws_sagemaker_endpoint_configuration.endpoint_configuration.name
 }
 
@@ -273,7 +270,7 @@ resource "aws_appautoscaling_target" "pipeline_endpoint" {
 }
 
 resource "aws_appautoscaling_policy" "pipeline_endpoint" {
-  name               = "${local.pipeline_name}:${aws_appautoscaling_target.pipeline_endpoint.resource_id}"
+  name               = "${var.pipeline-name}:${aws_appautoscaling_target.pipeline_endpoint.resource_id}"
   resource_id        = aws_appautoscaling_target.pipeline_endpoint.resource_id
   scalable_dimension = aws_appautoscaling_target.pipeline_endpoint.scalable_dimension
   service_namespace  = aws_appautoscaling_target.pipeline_endpoint.service_namespace
@@ -304,7 +301,7 @@ data "archive_file" "deploy_lambda_zip" {
 }
 
 resource "aws_lambda_function" "lambda_endpoint_deployer" {
-  function_name                  = "sagemaker-${local.pipeline_name}-endpoint-deploy"
+  function_name                  = "sagemaker-${var.pipeline-name}-endpoint-deploy"
   role                           = aws_iam_role.pipeline_iam_role.arn
   handler                        = "endpoint_deploy.lambda_handler"
   runtime                        = "python3.10"
@@ -321,7 +318,7 @@ resource "aws_lambda_function" "lambda_endpoint_deployer" {
 }
 
 resource "aws_cloudwatch_event_rule" "model_package_update_rule" {
-  name          = "sagemaker-${local.pipeline_name}-model-approve-or-reject"
+  name          = "sagemaker-${var.pipeline-name}-model-approve-or-reject"
   description   = "Listens to every sagemaker model package state change to either reject or update and invokes lambda function to deploy the latest approved model in the model package group to the endpoint."
   is_enabled    = true
   event_pattern = jsonencode({
@@ -330,7 +327,7 @@ resource "aws_cloudwatch_event_rule" "model_package_update_rule" {
     detail      = {
       ModelPackageGroupName = [
         {
-          prefix = "${local.pipeline_name}-"
+          prefix = "${var.pipeline-name}-"
         }
       ]
       ModelApprovalStatus = [
@@ -366,7 +363,7 @@ data "archive_file" "invoke_lambda_zip" {
 }
 
 resource "aws_lambda_function" "lambda_endpoint_invoker" {
-  function_name    = "sagemaker-${local.pipeline_name}-endpoint-invoker"
+  function_name    = "sagemaker-${var.pipeline-name}-endpoint-invoker"
   role             = aws_iam_role.pipeline_iam_role.arn
   handler          = "endpoint_invoke.lambda_handler"
   runtime          = "python3.10"
