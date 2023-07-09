@@ -51,11 +51,6 @@ jobs:
         -backend-config="region=$BACKEND_BUCKET_REGION" \
         -reconfigure
 
-    # Checks that all Terraform configuration files adhere to a canonical format
-    - name: Terraform Format
-      run: |
-        terraform fmt -check
-
       # Build or change infrastructure according to Terraform configuration files
     - name: Terraform Apply
       run: |
