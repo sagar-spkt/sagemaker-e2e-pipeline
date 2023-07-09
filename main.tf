@@ -199,7 +199,7 @@ resource "null_resource" "pipeline_definition" {
 
 resource "aws_s3_object" "pipeline_definition" {
   bucket      = aws_s3_bucket.pipeline_bucket.bucket
-  key         = "code/pipeline_definition.json"
+  key         = "codes/pipeline_definition.json"
   source      = "${path.module}/.terraform_artifacts/pipeline_definition.json"
   source_hash = sha256(join("", [
     filesha256("${path.module}/pipeline.py"), sha256(local.pipeline_definition_command)
