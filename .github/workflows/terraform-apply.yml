@@ -48,7 +48,7 @@ jobs:
         terraform init \
         -backend-config="bucket=$BACKEND_BUCKET_NAME" \
         -backend-config="key=sagemaker-e2e-pipeline-prod" \
-        -backend-config="region=BACKEND_BUCKET_REGION$" \
+        -backend-config="region=$BACKEND_BUCKET_REGION" \
         -reconfigure
 
     # Checks that all Terraform configuration files adhere to a canonical format
