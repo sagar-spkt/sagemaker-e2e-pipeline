@@ -212,15 +212,7 @@ resource "awscc_sagemaker_pipeline" "pipeline" {
   role_arn             = aws_iam_role.pipeline_iam_role.arn
   pipeline_description = "E2E Hyperparameter Optimization Multi-Model Pipeline"
   pipeline_definition  = {
-    pipeline_definition_s3_location = {
-      bucket = aws_s3_object.pipeline_definition.bucket
-      key    = aws_s3_object.pipeline_definition.key
-    }
-  }
-  lifecycle {
-    replace_triggered_by = [
-      aws_s3_object.pipeline_definition.source_hash
-    ]
+    pipeline_definition_body = aws_s3_object.pipeline_definition.content
   }
 }
 
