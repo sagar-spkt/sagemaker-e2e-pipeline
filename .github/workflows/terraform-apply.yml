@@ -30,7 +30,7 @@ jobs:
 
     # Install the latest version of Terraform CLI
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
+      uses: hashicorp/setup-terraform@v2
 
     # Prepare Terraform file with s3 backend to project root directory
     - name: Prepare Terraform Files
