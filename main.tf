@@ -211,6 +211,7 @@ resource "aws_s3_object" "pipeline_definition" {
 data "aws_s3_object" "pipeline_definition" {
   bucket = aws_s3_object.pipeline_definition.bucket
   key    = aws_s3_object.pipeline_definition.key
+  depends_on = [aws_s3_object.pipeline_definition]
 }
 
 resource "awscc_sagemaker_pipeline" "pipeline" {
