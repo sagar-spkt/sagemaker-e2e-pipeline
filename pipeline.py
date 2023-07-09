@@ -2,6 +2,7 @@ import argparse
 import json
 import numpy as np
 
+import boto3
 from sagemaker.workflow.pipeline_context import PipelineSession
 from sagemaker.workflow.parameters import ParameterInteger, ParameterFloat, ParameterString
 from sagemaker.processing import ScriptProcessor
@@ -49,11 +50,15 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
 
     """---------------------------Pipeline Definition Resources-------------------------"""
-    sagemaker_session = PipelineSession(default_bucket=args.bucket)
     role = args.role
     pipeline_name = args.pipeline_name
     image_uri = args.image_uri
     aws_region = args.aws_region
+    boto_session = boto3.Session(region_name=aws_region)
+    sagemaker_session = PipelineSession(
+        boto_session=boto_session,
+        default_bucket=args.bucket,
+    )
 
     """-----------------------------------Preprocessing Step-----------------------------"""
     dataset_param = ParameterString(
