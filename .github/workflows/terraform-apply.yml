@@ -13,10 +13,73 @@ permissions:
   contents: read
 
 jobs:
-  terraform:
-    name: 'Terraform'
+  staging:
+    name: 'Terraform Stage'
     runs-on: ubuntu-latest
-    environment: production
+    environment:
+      name: Staging
+
+    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install Python Dependencies
+      run: |
+        pip install -r requirements.txt
+
+    # Install the latest version of Terraform CLI
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+
+    # Prepare Terraform file with s3 backend in project root directory
+    - name: Prepare Terraform Files
+      run: |
+        echo 'terraform {
+          backend "s3" {}
+        }' > backend.tf
+
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      env:
+        BACKEND_BUCKET_NAME: ${{ vars.BACKEND_BUCKET_NAME }}
+        BACKEND_BUCKET_REGION: ${{ vars.BACKEND_BUCKET_REGION }}
+      run: |
+        terraform init \
+        -backend-config="bucket=$BACKEND_BUCKET_NAME" \
+        -backend-config="key=sagemaker-e2e-pipeline-stage" \
+        -backend-config="region=$BACKEND_BUCKET_REGION" \
+        -reconfigure
+
+    # Build or change infrastructure according to Terraform configuration files
+    - name: Terraform Apply
+      run: |
+        terraform apply \
+        -auto-approve \
+        -var pipeline-name="sklearn-multimodel-stage" \
+        -var aws-region="$AWS_REGION" \
+        -var preprocessing-instance="ml.t3.xlarge" \
+        -var training-instance="ml.m5.large" \
+        -var evaluation-instance="ml.t3.xlarge" \
+        -var inference-instance="ml.m5.large" \
+        -var max-endpoint-instances=4
+
+  production:
+    name: 'Terraform Prod'
+    runs-on: ubuntu-latest
+    environment:
+      name: Production
+    needs: [staging]
 
     # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
     defaults:
