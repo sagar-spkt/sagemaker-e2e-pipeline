@@ -215,8 +215,12 @@ resource "awscc_sagemaker_pipeline" "pipeline" {
     pipeline_definition_s3_location = {
       bucket = aws_s3_object.pipeline_definition.bucket
       key    = aws_s3_object.pipeline_definition.key
-      etag   = aws_s3_object.pipeline_definition.etag
     }
+  }
+  lifecycle {
+    replace_triggered_by = [
+      aws_s3_object.pipeline_definition.source_hash
+    ]
   }
 }
 
