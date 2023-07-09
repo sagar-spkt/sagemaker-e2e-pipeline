@@ -352,7 +352,5 @@ You can use terraform to destroy most of the resources created in this guideline
 ```shell
 terraform destroy
 ```
-However, this command won't delete following resources. You've to delete them manually. Automated deletion is not implemented for them to avoid accidental deletion and terraform won't be able to recreate model artifacts from pipeline run.
-- AWS ECR repository and images inside.
-- AWS S3 Bucket and model artifacts created by deployment lambda function.
-- AWS Sagemaker Model Packages in Model Registry
+However, this command won't delete following resources. You've to delete them manually.
+- AWS Sagemaker Model Packages in Model Registry since it is not created by the Terraform. They're created dynamically by the pipeline based on input hance not destroyed by Terraform.

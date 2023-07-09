@@ -61,7 +61,7 @@ locals {
 }
 
 resource "aws_iam_role" "pipeline_iam_role" {
-  name               = "${local.pipeline_name}_pipeline_role"
+  name               = "${local.pipeline_name}-pipeline-role"
   assume_role_policy = jsonencode({
     Version   = "2012-10-17"
     Statement = [
@@ -94,7 +94,7 @@ resource "aws_iam_role_policy_attachment" "pipeline_iam_policies" {
 resource "aws_ecr_repository" "ecr_repo" {
   name                 = "${local.pipeline_name}-image"
   image_tag_mutability = "IMMUTABLE"
-  force_delete         = false
+  force_delete         = true
   encryption_configuration {
     encryption_type = "AES256"
   }
@@ -130,9 +130,8 @@ data "aws_ecr_image" "latest_image" {
 }
 
 resource "aws_s3_bucket" "pipeline_bucket" {
-  # use default sagemaker bucket
-  bucket        = "sagemaker-${data.aws_region.current_region.name}-${data.aws_caller_identity.current_caller.account_id}"
-  force_destroy = false
+  bucket        = "sagemaker-${local.pipeline_name}"
+  force_destroy = true
 }
 
 resource "null_resource" "source_tar" {
@@ -150,7 +149,7 @@ resource "null_resource" "source_tar" {
 
 resource "aws_s3_object" "source_tar" {
   bucket      = aws_s3_bucket.pipeline_bucket.bucket
-  key         = "${local.pipeline_name}/codes/source.tar.gz"
+  key         = "codes/source.tar.gz"
   source      = "${path.module}/.terraform_artifacts/source.tar.gz"
   source_hash = sha256(join("", [
     for file_path in fileset("${path.module}/scripts", "**") : filesha256("${path.module}/scripts/${file_path}")
@@ -160,14 +159,14 @@ resource "aws_s3_object" "source_tar" {
 
 resource "aws_s3_object" "preprocessing_script" {
   bucket = aws_s3_bucket.pipeline_bucket.bucket
-  key    = "${local.pipeline_name}/codes/preprocessing.py"
+  key    = "codes/preprocessing.py"
   source = "${path.module}/scripts/preprocessing.py"
   etag   = filemd5("${path.module}/scripts/preprocessing.py")
 }
 
 resource "aws_s3_object" "evaluation_script" {
   bucket = aws_s3_bucket.pipeline_bucket.bucket
-  key    = "${local.pipeline_name}/codes/evaluate.py"
+  key    = "codes/evaluate.py"
   source = "${path.module}/scripts/evaluate.py"
   etag   = filemd5("${path.module}/scripts/evaluate.py")
 }
@@ -175,6 +174,7 @@ resource "aws_s3_object" "evaluation_script" {
 locals {
   pipeline_definition_command = <<EOT
     python ${path.module}/pipeline.py \
+    --bucket ${aws_s3_bucket.pipeline_bucket.bucket} \
     --role ${aws_iam_role.pipeline_iam_role.arn} \
     --image-uri ${data.aws_caller_identity.current_caller.account_id}.dkr.ecr.${data.aws_region.current_region.name}.amazonaws.com/${aws_ecr_repository.ecr_repo.name}@${data.aws_ecr_image.latest_image.image_digest} \
     --pipeline-name ${local.pipeline_name} \
@@ -228,12 +228,16 @@ resource "awscc_sagemaker_pipeline" "pipeline" {
   }
 }
 
+locals {
+  multimodel_artifacts_key = "multimodel-artifacts"
+}
+
 resource "aws_sagemaker_model" "endpoint_model" {
   name               = "${local.pipeline_name}-multimodel"
   execution_role_arn = aws_iam_role.pipeline_iam_role.arn
   primary_container {
     image          = "${data.aws_caller_identity.current_caller.account_id}.dkr.ecr.${data.aws_region.current_region.name}.amazonaws.com/${aws_ecr_repository.ecr_repo.name}@${data.aws_ecr_image.latest_image.image_digest}"
-    model_data_url = "s3://${aws_s3_bucket.pipeline_bucket.bucket}/${local.pipeline_name}/multimodel-artifacts/"
+    model_data_url = "s3://${aws_s3_bucket.pipeline_bucket.bucket}/${local.multimodel_artifacts_key}/"
     mode           = "MultiModel"
     environment    = {
       SAGEMAKER_CONTAINER_LOG_LEVEL = 20
@@ -300,7 +304,7 @@ data "archive_file" "deploy_lambda_zip" {
 }
 
 resource "aws_lambda_function" "lambda_endpoint_deployer" {
-  function_name                  = "sagemaker-${local.pipeline_name}-pipeline-endpoint-deploy"
+  function_name                  = "sagemaker-${local.pipeline_name}-endpoint-deploy"
   role                           = aws_iam_role.pipeline_iam_role.arn
   handler                        = "endpoint_deploy.lambda_handler"
   runtime                        = "python3.10"
@@ -310,14 +314,14 @@ resource "aws_lambda_function" "lambda_endpoint_deployer" {
   environment {
     variables = {
       PIPELINE_BUCKET     = aws_s3_bucket.pipeline_bucket.bucket
-      MODEL_ARTIFACTS_KEY = "${local.pipeline_name}/multimodel-artifacts"
+      MODEL_ARTIFACTS_KEY = local.multimodel_artifacts_key
       GROUPNAME_MODEL_MAP = "groupname2model_map.json"
     }
   }
 }
 
 resource "aws_cloudwatch_event_rule" "model_package_update_rule" {
-  name          = "sagemaker-${local.pipeline_name}-pipeline-model-approve-or-reject"
+  name          = "sagemaker-${local.pipeline_name}-model-approve-or-reject"
   description   = "Listens to every sagemaker model package state change to either reject or update and invokes lambda function to deploy the latest approved model in the model package group to the endpoint."
   is_enabled    = true
   event_pattern = jsonencode({

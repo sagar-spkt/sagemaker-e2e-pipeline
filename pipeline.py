@@ -32,6 +32,7 @@ if __name__ == "__main__":
     """---------------------------Pipeline Definition Arguments-------------------------"""
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--bucket")
     parser.add_argument("--role")
     parser.add_argument("--image-uri")
     parser.add_argument("--pipeline-name")
@@ -47,8 +48,7 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
 
     """---------------------------Pipeline Definition Resources-------------------------"""
-    sagemaker_session = PipelineSession()
-    bucket = sagemaker_session.default_bucket()
+    sagemaker_session = PipelineSession(default_bucket=args.bucket)
     role = args.role
     pipeline_name = args.pipeline_name
     image_uri = args.image_uri
