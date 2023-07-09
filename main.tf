@@ -186,19 +186,6 @@ locals {
   EOT
 }
 
-resource "null_resource" "pipeline_definition_file" {
-  triggers = {
-    ifnotexists = sha256(
-      fileexists("${path.module}/.terraform_artifacts/pipeline_definition.json")
-      ? "pipeline definition exists."
-      : "pipeline definition doesn't exist."
-    )
-  }
-  provisioner "local-exec" {
-    command = "touch ${path.module}/.terraform_artifacts/pipeline_definition.json"
-  }
-}
-
 resource "null_resource" "pipeline_definition" {
   triggers = {
     file_hashes = sha256(join("", [
@@ -208,11 +195,15 @@ resource "null_resource" "pipeline_definition" {
   provisioner "local-exec" {
     command = local.pipeline_definition_command
   }
-  depends_on = [null_resource.pipeline_definition_file]
 }
 
-data "local_file" "pipeline_definition" {
-  filename   = "${path.module}/.terraform_artifacts/pipeline_definition.json"
+resource "aws_s3_object" "pipeline_definition" {
+  bucket      = aws_s3_bucket.pipeline_bucket.bucket
+  key         = "code/pipeline_definition.json"
+  source      = "${path.module}/.terraform_artifacts/pipeline_definition.json"
+  source_hash = sha256(join("", [
+    filesha256("${path.module}/pipeline.py"), sha256(local.pipeline_definition_command)
+  ]))
   depends_on = [null_resource.pipeline_definition]
 }
 
@@ -221,7 +212,11 @@ resource "awscc_sagemaker_pipeline" "pipeline" {
   role_arn             = aws_iam_role.pipeline_iam_role.arn
   pipeline_description = "E2E Hyperparameter Optimization Multi-Model Pipeline"
   pipeline_definition  = {
-    pipeline_definition_body = data.local_file.pipeline_definition.content
+    pipeline_definition_s3_location = {
+      bucket = aws_s3_object.pipeline_definition.bucket
+      key    = aws_s3_object.pipeline_definition.key
+      etag   = aws_s3_object.pipeline_definition.etag
+    }
   }
 }
 

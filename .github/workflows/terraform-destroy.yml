@@ -43,8 +43,6 @@ jobs:
         echo 'terraform {
           backend "s3" {}
         }' > backend.tf
-        mkdir -p .terraform_artifacts
-        touch .terraform_artifacts/pipeline_definition.json
 
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
