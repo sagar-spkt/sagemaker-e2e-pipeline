@@ -9,6 +9,7 @@ on:
         type: choice
         options:
         - sagemaker-e2e-pipeline-prod
+        - sagemaker-e2e-pipeline-stage
 
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
