@@ -306,7 +306,7 @@ resource "aws_lambda_function" "lambda_endpoint_deployer" {
   handler                        = "endpoint_deploy.lambda_handler"
   runtime                        = "python3.10"
   filename                       = data.archive_file.deploy_lambda_zip.output_path
-  reserved_concurrent_executions = 1
+#  reserved_concurrent_executions = 1
   source_code_hash               = data.archive_file.deploy_lambda_zip.output_base64sha256
   environment {
     variables = {
