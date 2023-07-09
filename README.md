@@ -41,9 +41,14 @@ sagemaker-e2e-pipeline
 │   │   ├── LightGBM.py     # Training Script for LightGBM model
 │   │   ├── NeuralNet.py    # Training Script for NeuralNet model
 │   │   └── ...             # Training Scripts for other models
+│   ├── evaluate.py         # Best model evaluation script on test split
+│   ├── inference.py        # Script used by endpoint during inference
+│   ├── preprocessing.py    # Script used in preprocessing step
+│   └── refit.py            # Script that refit model with best parameters found in tuning step
 ├── main.tf                 # Terraform file containing configuration for AWS Resources used in the pipeline
 ├── pipeline.py             # Sagemaker pipeline definition
 ├── requirements.txt        # Python dependencies
+├──.gitignore               # gitignore
 ├── LICENSE                 # License file
 └── README.md               # This file
 ```

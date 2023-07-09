@@ -112,7 +112,7 @@ resource "null_resource" "image_build_push" {
   triggers = {
     # changes in `image` will trigger docker image build and push step
     file_hashes = sha256(join("", [
-      for file_path in fileset("${path.module}/image", "**") :filesha256("${path.module}/image/${file_path}")
+      for file_path in fileset("${path.module}/image", "**") : filesha256("${path.module}/image/${file_path}")
     ]))
   }
 
@@ -138,7 +138,7 @@ resource "aws_s3_bucket" "pipeline_bucket" {
 resource "null_resource" "source_tar" {
   triggers = {
     file_hashes = sha256(join("", [
-      for file_path in fileset("${path.module}/scripts", "**") :filesha256("${path.module}/scripts/${file_path}")
+      for file_path in fileset("${path.module}/scripts", "**") : filesha256("${path.module}/scripts/${file_path}")
     ]))
   }
   provisioner "local-exec" {
@@ -153,7 +153,7 @@ resource "aws_s3_object" "source_tar" {
   key         = "${local.pipeline_name}/codes/source.tar.gz"
   source      = "${path.module}/.terraform_artifacts/source.tar.gz"
   source_hash = sha256(join("", [
-    for file_path in fileset("${path.module}/scripts", "**") :filesha256("${path.module}/scripts/${file_path}")
+    for file_path in fileset("${path.module}/scripts", "**") : filesha256("${path.module}/scripts/${file_path}")
   ]))
   depends_on = [null_resource.source_tar]
 }
