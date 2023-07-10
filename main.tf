@@ -236,7 +236,7 @@ locals {
 }
 
 resource "aws_sagemaker_model" "endpoint_model" {
-  name               = "${var.pipeline-name}-multimodel"
+  name               = "${var.pipeline-name}-${formatdate("DD-MM-YYYY-hh-mm-ss", timestamp())}"
   execution_role_arn = aws_iam_role.pipeline_iam_role.arn
   primary_container {
     image          = "${data.aws_caller_identity.current_caller.account_id}.dkr.ecr.${data.aws_region.current_region.name}.amazonaws.com/${aws_ecr_repository.ecr_repo.name}@${data.aws_ecr_image.latest_image.image_digest}"
@@ -249,10 +249,16 @@ resource "aws_sagemaker_model" "endpoint_model" {
       SAGEMAKER_SUBMIT_DIRECTORY    = "s3://${aws_s3_object.source_tar.bucket}/${aws_s3_object.source_tar.key}"
     }
   }
+  lifecycle {
+    create_before_destroy = true
+    ignore_changes = [
+      name
+    ]
+  }
 }
 
 resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
-  name = "${var.pipeline-name}-endpoint-config-${formatdate("DD-MM-YYYY-hh-mm-ss", timestamp())}"
+  name = "${var.pipeline-name}-${formatdate("DD-MM-YYYY-hh-mm-ss", timestamp())}"
   production_variants {
     model_name             = aws_sagemaker_model.endpoint_model.name
     variant_name           = "AllTraffic"
