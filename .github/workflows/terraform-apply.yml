@@ -18,8 +18,7 @@ jobs:
   staging:
     name: 'Terraform Stage'
     runs-on: ubuntu-latest
-    environment:
-      name: Staging
+    environment: staging
 
     # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
     defaults:
@@ -80,8 +79,7 @@ jobs:
     if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
     name: 'Terraform Prod'
     runs-on: ubuntu-latest
-    environment:
-      name: Production
+    environment: production
     needs: [staging]
 
     # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
