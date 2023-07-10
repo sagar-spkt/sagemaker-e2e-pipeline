@@ -50,11 +50,11 @@ jobs:
       env:
         BACKEND_BUCKET_NAME: ${{ vars.BACKEND_BUCKET_NAME }}
         BACKEND_BUCKET_REGION: ${{ vars.BACKEND_BUCKET_REGION }}
-        BAcKEND_STATE_KEY: ${{ github.event.inputs.environment }}
+        BACKEND_STATE_KEY: ${{ github.event.inputs.environment }}
       run: |
         terraform init \
         -backend-config="bucket=$BACKEND_BUCKET_NAME" \
-        -backend-config="key=$BAcKEND_STATE_KEY" \
+        -backend-config="key=$BACKEND_STATE_KEY" \
         -backend-config="region=$BACKEND_BUCKET_REGION" \
         -reconfigure
 
