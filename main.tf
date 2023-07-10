@@ -243,7 +243,7 @@ resource "aws_sagemaker_model" "endpoint_model" {
 }
 
 resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
-  name = '${var.pipeline-name}-endpoint-config-${formatdate("DD-MM-YYYY-hh-mm-ss", timestamp())}'
+  name = "${var.pipeline-name}-endpoint-config-${formatdate("DD-MM-YYYY-hh-mm-ss", timestamp())}"
   production_variants {
     model_name             = aws_sagemaker_model.endpoint_model.name
     variant_name           = "AllTraffic"
