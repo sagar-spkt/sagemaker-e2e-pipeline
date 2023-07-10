@@ -251,7 +251,7 @@ resource "aws_sagemaker_model" "endpoint_model" {
   }
   lifecycle {
     create_before_destroy = true
-    ignore_changes = [
+    ignore_changes        = [
       name
     ]
   }
@@ -322,13 +322,13 @@ data "archive_file" "deploy_lambda_zip" {
 }
 
 resource "aws_lambda_function" "lambda_endpoint_deployer" {
-  function_name    = "sagemaker-${var.pipeline-name}-endpoint-deploy"
-  role             = aws_iam_role.pipeline_iam_role.arn
-  handler          = "endpoint_deploy.lambda_handler"
-  runtime          = "python3.10"
-  filename         = data.archive_file.deploy_lambda_zip.output_path
-  #  reserved_concurrent_executions = 1
-  source_code_hash = data.archive_file.deploy_lambda_zip.output_base64sha256
+  function_name                  = "sagemaker-${var.pipeline-name}-endpoint-deploy"
+  role                           = aws_iam_role.pipeline_iam_role.arn
+  handler                        = "endpoint_deploy.lambda_handler"
+  runtime                        = "python3.10"
+  filename                       = data.archive_file.deploy_lambda_zip.output_path
+  reserved_concurrent_executions = 1
+  source_code_hash               = data.archive_file.deploy_lambda_zip.output_base64sha256
   environment {
     variables = {
       PIPELINE_BUCKET     = aws_s3_bucket.pipeline_bucket.bucket
