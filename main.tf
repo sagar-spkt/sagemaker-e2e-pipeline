@@ -198,11 +198,11 @@ resource "null_resource" "pipeline_definition" {
 }
 
 resource "aws_s3_object" "pipeline_definition" {
-  bucket      = aws_s3_bucket.pipeline_bucket.bucket
-  key         = "codes/pipeline_definition.json"
+  bucket       = aws_s3_bucket.pipeline_bucket.bucket
+  key          = "codes/pipeline_definition.json"
   content_type = "application/json"
-  source      = "${path.module}/.terraform_artifacts/pipeline_definition.json"
-  source_hash = sha256(join("", [
+  source       = "${path.module}/.terraform_artifacts/pipeline_definition.json"
+  source_hash  = sha256(join("", [
     filesha256("${path.module}/pipeline.py"), sha256(local.pipeline_definition_command)
   ]))
   depends_on = [null_resource.pipeline_definition]
@@ -243,7 +243,7 @@ resource "aws_sagemaker_model" "endpoint_model" {
 }
 
 resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
-  name = "${var.pipeline-name}-endpoint-config"
+  name = '${var.pipeline-name}-endpoint-config-${formatdate("DD-MM-YYYY-hh-mm-ss", timestamp())}'
   production_variants {
     model_name             = aws_sagemaker_model.endpoint_model.name
     variant_name           = "AllTraffic"
@@ -255,17 +255,16 @@ resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
     replace_triggered_by = [
       aws_sagemaker_model.endpoint_model
     ]
+    ignore_changes = [
+      name
+    ]
+    create_before_destroy = true
   }
 }
 
 resource "aws_sagemaker_endpoint" "endpoint" {
   name                 = var.pipeline-name
   endpoint_config_name = aws_sagemaker_endpoint_configuration.endpoint_configuration.name
-  lifecycle {
-    replace_triggered_by = [
-      aws_sagemaker_endpoint_configuration.endpoint_configuration
-    ]
-  }
 }
 
 resource "aws_appautoscaling_target" "pipeline_endpoint" {
@@ -308,13 +307,13 @@ data "archive_file" "deploy_lambda_zip" {
 }
 
 resource "aws_lambda_function" "lambda_endpoint_deployer" {
-  function_name                  = "sagemaker-${var.pipeline-name}-endpoint-deploy"
-  role                           = aws_iam_role.pipeline_iam_role.arn
-  handler                        = "endpoint_deploy.lambda_handler"
-  runtime                        = "python3.10"
-  filename                       = data.archive_file.deploy_lambda_zip.output_path
-#  reserved_concurrent_executions = 1
-  source_code_hash               = data.archive_file.deploy_lambda_zip.output_base64sha256
+  function_name    = "sagemaker-${var.pipeline-name}-endpoint-deploy"
+  role             = aws_iam_role.pipeline_iam_role.arn
+  handler          = "endpoint_deploy.lambda_handler"
+  runtime          = "python3.10"
+  filename         = data.archive_file.deploy_lambda_zip.output_path
+  #  reserved_concurrent_executions = 1
+  source_code_hash = data.archive_file.deploy_lambda_zip.output_base64sha256
   environment {
     variables = {
       PIPELINE_BUCKET     = aws_s3_bucket.pipeline_bucket.bucket
