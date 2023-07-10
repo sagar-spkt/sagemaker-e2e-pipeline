@@ -261,6 +261,11 @@ resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
 resource "aws_sagemaker_endpoint" "endpoint" {
   name                 = var.pipeline-name
   endpoint_config_name = aws_sagemaker_endpoint_configuration.endpoint_configuration.name
+  lifecycle {
+    replace_triggered_by = [
+      aws_sagemaker_endpoint_configuration.endpoint_configuration
+    ]
+  }
 }
 
 resource "aws_appautoscaling_target" "pipeline_endpoint" {
