@@ -89,7 +89,7 @@ resource "aws_iam_role_policy_attachment" "pipeline_iam_policies" {
 
 resource "aws_ecr_repository" "ecr_repo" {
   name                 = "${var.pipeline-name}-image"
-  image_tag_mutability = "IMMUTABLE"
+  image_tag_mutability = "MUTABLE"
   force_delete         = true
   encryption_configuration {
     encryption_type = "AES256"
