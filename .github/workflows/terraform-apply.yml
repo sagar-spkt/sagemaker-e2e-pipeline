@@ -76,7 +76,7 @@ jobs:
         -var max-endpoint-instances=4
 
   production:
-#    if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     name: 'Terraform Prod'
     runs-on: ubuntu-latest
     environment: production
