@@ -104,18 +104,27 @@ data "aws_region" "current_region" {
 
 }
 
+locals {
+  image_build_push_command = <<EOT
+    sh ${path.module}/image/build_and_push.sh ${data.aws_caller_identity.current_caller.account_id} ${data.aws_region.current_region.name} ${aws_ecr_repository.ecr_repo.name}
+  EOT
+}
+
 resource "null_resource" "image_build_push" {
   triggers = {
     # changes in `image` will trigger docker image build and push step
-    file_hashes = sha256(join("", [
-      for file_path in fileset("${path.module}/image", "**") : filesha256("${path.module}/image/${file_path}")
-    ]))
+    file_hashes = sha256(join("", concat(
+      [
+        for file_path in fileset("${path.module}/image", "**") : filesha256("${path.module}/image/${file_path}")
+      ],
+      [
+        sha256(local.image_build_push_command)
+      ]
+    )))
   }
 
   provisioner "local-exec" {
-    command = <<EOT
-      sh ${path.module}/image/build_and_push.sh ${data.aws_caller_identity.current_caller.account_id} ${data.aws_region.current_region.name} ${aws_ecr_repository.ecr_repo.name}
-    EOT
+    command = local.image_build_push_command
   }
 }
 
