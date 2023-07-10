@@ -251,6 +251,11 @@ resource "aws_sagemaker_endpoint_configuration" "endpoint_configuration" {
     initial_instance_count = 1
     initial_variant_weight = 1
   }
+  lifecycle {
+    replace_triggered_by = [
+      aws_sagemaker_model.endpoint_model
+    ]
+  }
 }
 
 resource "aws_sagemaker_endpoint" "endpoint" {
