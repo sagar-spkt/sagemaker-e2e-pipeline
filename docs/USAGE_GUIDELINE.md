@@ -101,9 +101,6 @@ terraform init
 terraform apply \
 -var pipeline-name="sklearn-multimodel" \
 -var aws-region="us-east-1" \
--var preprocessing-instance="ml.t3.xlarge" \
--var training-instance="ml.m5.large" \
--var evaluation-instance="ml.t3.xlarge" \
 -var inference-instance="ml.m5.large" \
 -var max-endpoint-instances=4
 ```
@@ -129,6 +126,9 @@ Select the pipeline and click the `Create execution` button. You'll see pop like
 - **MetricForRegistrationThreshold**: Metric whose value is used to decide whether to register the model to registry or not.
 - **MinThesholdForRegisterMetric**: Minimum value for `MetricForRegistrationThreshold` the model should pass to be registered in the model registry.
 - **RegisterModelApprovalStatus**: Whether to automatically deploy the model to endpoint or not if it passes the `MetricForRegistrationThreshold` constraint.
+- **PreprocessingInstance**: AWS Instance name on which to run the preprocessing job.
+- **TrainingInstance**: AWS Instance name on which to run the tuning and training job.
+- **EvaluationInstance**: AWS Instance name on which to run the evaluation job.
 ![](images/image2.png)
 
 You can see the list of pipeline executions in the dashboard. You'll find information like the execution status, time taken, and many more.
@@ -184,6 +184,9 @@ Retrieve the pipeline parameters. Following code will return input parameters to
 - **MetricForRegistrationThreshold**: Metric whose value is used to decide whether to register the model to registry or not.
 - **MinThesholdForRegisterMetric**: Minimum value for `MetricForRegistrationThreshold` the model should pass to be registered in the model registry.
 - **RegisterModelApprovalStatus**: Whether to automatically deploy the model to endpoint or not if it passes the `MetricForRegistrationThreshold` constraint.
+- **PreprocessingInstance**: AWS Instance name on which to run the preprocessing job.
+- **TrainingInstance**: AWS Instance name on which to run the tuning and training job.
+- **EvaluationInstance**: AWS Instance name on which to run the evaluation job.
 
 
 ```python
