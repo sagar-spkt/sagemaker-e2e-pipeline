@@ -69,9 +69,6 @@ jobs:
         -auto-approve \
         -var pipeline-name="sklearn-multimodel-stage" \
         -var aws-region="$AWS_REGION" \
-        -var preprocessing-instance="ml.t3.xlarge" \
-        -var training-instance="ml.m5.large" \
-        -var evaluation-instance="ml.t3.xlarge" \
         -var inference-instance="ml.m5.large" \
         -var max-endpoint-instances=4
 
@@ -131,8 +128,5 @@ jobs:
         -auto-approve \
         -var pipeline-name="sklearn-multimodel" \
         -var aws-region="$AWS_REGION" \
-        -var preprocessing-instance="ml.t3.xlarge" \
-        -var training-instance="ml.m5.large" \
-        -var evaluation-instance="ml.t3.xlarge" \
         -var inference-instance="ml.m5.large" \
         -var max-endpoint-instances=4

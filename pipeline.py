@@ -42,9 +42,6 @@ if __name__ == "__main__":
     parser.add_argument("--preprocessing-script-s3")
     parser.add_argument("--evaluation-script-s3")
     parser.add_argument("--definition-output")
-    parser.add_argument("--preprocessing-instance")
-    parser.add_argument("--training-instance")
-    parser.add_argument("--evaluation-instance")
     parser.add_argument("--inference-instance")
 
     args, _ = parser.parse_known_args()
@@ -74,11 +71,13 @@ if __name__ == "__main__":
         name="TestSetSize", default_value=0.2)
     preprocess_random_state = ParameterInteger(
         name="RandomState", default_value=42)
+    preprocessing_instance = ParameterString(
+        name="PreprocessingInstance", default_value="ml.t3.xlarge")
 
     preprocessor = ScriptProcessor(
         image_uri=image_uri,
         command=["python"],
-        instance_type=args.preprocessing_instance,
+        instance_type=preprocessing_instance,
         instance_count=1,
         sagemaker_session=sagemaker_session,
         role=role,
@@ -123,6 +122,8 @@ if __name__ == "__main__":
             'roc_auc_ovr_weighted', 'roc_auc_ovo_weighted',
         ],
     )
+    training_instance = ParameterString(
+        name="TrainingInstance", default_value="ml.m5.large")
 
     common_hyperparameters = {
         "target": "CLASS",
@@ -141,7 +142,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type=args.training_instance,
+            instance_type=training_instance,
             image_uri=image_uri,
             # need to pass copy because each job updates this dictionary and all uses the same reference
             hyperparameters=common_hyperparameters.copy(),
@@ -152,7 +153,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type=args.training_instance,
+            instance_type=training_instance,
             image_uri=image_uri,
             hyperparameters=common_hyperparameters.copy(),
             sagemaker_session=sagemaker_session,
@@ -162,7 +163,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type=args.training_instance,
+            instance_type=training_instance,
             image_uri=image_uri,
             hyperparameters=common_hyperparameters.copy(),
             sagemaker_session=sagemaker_session,
@@ -172,7 +173,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type=args.training_instance,
+            instance_type=training_instance,
             image_uri=image_uri,
             hyperparameters=common_hyperparameters.copy(),
             sagemaker_session=sagemaker_session,
@@ -182,7 +183,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type=args.training_instance,
+            instance_type=training_instance,
             image_uri=image_uri,
             hyperparameters=common_hyperparameters.copy(),
             sagemaker_session=sagemaker_session,
@@ -192,7 +193,7 @@ if __name__ == "__main__":
             source_dir=args.source_s3_uri,
             role=role,
             instance_count=1,
-            instance_type=args.training_instance,
+            instance_type=training_instance,
             image_uri=image_uri,
             hyperparameters=common_hyperparameters.copy(),
             sagemaker_session=sagemaker_session,
@@ -305,7 +306,7 @@ if __name__ == "__main__":
         source_dir=args.source_s3_uri,
         role=role,
         instance_count=1,
-        instance_type=args.training_instance,
+        instance_type=training_instance,
         image_uri=image_uri,
         hyperparameters=best_estimator_param,
         metric_definitions=metric_definitions,
@@ -343,10 +344,11 @@ if __name__ == "__main__":
     )
 
     """-----------------------------------Evaluate Best Model Step-----------------------------"""
+    evaluation_instance = ParameterString(name="EvaluationInstance", default_value="ml.t3.xlarge")
     evaluate_processor = ScriptProcessor(
         image_uri=image_uri,
         command=["python"],
-        instance_type=args.evaluation_instance,
+        instance_type=evaluation_instance,
         instance_count=1,
         sagemaker_session=sagemaker_session,
         role=role,
@@ -469,6 +471,7 @@ if __name__ == "__main__":
         name=pipeline_name,
         parameters=[
             dataset_param, stratify_train_test_split, preprocess_testset_size, preprocess_random_state,
+            preprocessing_instance, training_instance, evaluation_instance,
             tuning_cross_validation_scorer, tuning_max_jobs, tuning_max_parallel_jobs, register_eval_metric,
             register_eval_metric_threshold, register_model_approval_status,
         ],

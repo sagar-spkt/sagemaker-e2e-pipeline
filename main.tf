@@ -23,21 +23,6 @@ variable "aws-region" {
   default = "us-east-1"
 }
 
-variable "preprocessing-instance" {
-  type    = string
-  default = "ml.t3.xlarge"
-}
-
-variable "training-instance" {
-  type    = string
-  default = "ml.m5.large"
-}
-
-variable "evaluation-instance" {
-  type    = string
-  default = "ml.t3.xlarge"
-}
-
 variable "inference-instance" {
   type    = string
   default = "ml.m5.large"
@@ -188,9 +173,6 @@ locals {
     --preprocessing-script-s3 s3://${aws_s3_object.preprocessing_script.bucket}/${aws_s3_object.preprocessing_script.key} \
     --evaluation-script-s3 s3://${aws_s3_object.evaluation_script.bucket}/${aws_s3_object.evaluation_script.key} \
     --definition-output ${path.module}/.terraform_artifacts/pipeline_definition.json \
-    --preprocessing-instance ${var.preprocessing-instance} \
-    --training-instance ${var.training-instance} \
-    --evaluation-instance ${var.evaluation-instance} \
     --inference-instance ${var.inference-instance} \
   EOT
 }
