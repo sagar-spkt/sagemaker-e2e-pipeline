@@ -33,16 +33,16 @@ if __name__ == "__main__":
     """---------------------------Pipeline Definition Arguments-------------------------"""
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--bucket")
-    parser.add_argument("--role")
-    parser.add_argument("--image-uri")
-    parser.add_argument("--pipeline-name")
-    parser.add_argument("--aws-region")
-    parser.add_argument("--source-s3-uri")
-    parser.add_argument("--preprocessing-script-s3")
-    parser.add_argument("--evaluation-script-s3")
-    parser.add_argument("--definition-output")
-    parser.add_argument("--inference-instance")
+    parser.add_argument("--bucket", help="S3 bucket where artifacts created for and produced from the pipeline will be stored")
+    parser.add_argument("--role", help="AWS IAM Rolewith access to all the resources required for the pipeline")
+    parser.add_argument("--image-uri", help="AWS ECR Docker Image where all operation in the pipeline will be performed")
+    parser.add_argument("--pipeline-name", help="Name of the pipeline")
+    parser.add_argument("--aws-region", help="AWS Region where the pipeline will be created and executed")
+    parser.add_argument("--source-s3-uri", help="`tar.gz` file location in s3 where all the scripts for the pipeline is uploaded")
+    parser.add_argument("--preprocessing-script-s3", help="preprocessing script location in s3")
+    parser.add_argument("--evaluation-script-s3", help="evaluation script location in s3")
+    parser.add_argument("--definition-output", help="json file location to dump the pipeline definition")
+    parser.add_argument("--inference-instance", help="AWS Instance type on which to run the inference.")
 
     args, _ = parser.parse_known_args()
 
