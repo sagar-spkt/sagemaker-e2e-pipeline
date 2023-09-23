@@ -54,7 +54,7 @@ sagemaker-e2e-pipeline
 ```
 
 ## Implementation Details
-For implementation details, please read my blog: [Terraform a Scalable Comprehensive Sagemaker MultiModel Pipeline](https://spktsagar.com/posts/2020/07/terraform-sagemaker-multimodel-pipeline/)
+For implementation details, please read my blog: [Terraform a Scalable Comprehensive Sagemaker MultiModel Pipeline](https://spktsagar.com/posts/2023/07/terraform-sagemaker-multimodel-pipeline/)
 
 ## Usage
 To use the pipeline, please read the [usage guideline](docs/USAGE_GUIDELINE.md).
